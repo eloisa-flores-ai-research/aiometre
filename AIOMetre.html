@@ -68,7 +68,7 @@
   </div>
   <div class="input-area">
     <button class="vol-btn" id="volBtn" title="Toggle voice">🔊</button>
-    <button class="mic-btn" id="micBtn" title="Hold to talk">🎙</button>
+    <button class="mic-btn" id="micBtn" title="Tap to talk">🎙</button>
     <input class="input-box" id="inputBox" type="text" placeholder="or type here..."/>
     <button class="send-btn" id="sendBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
@@ -95,29 +95,22 @@
     const meterValue = document.getElementById('meterValue');
     const sessionId = 'session_' + Date.now();
     let voiceEnabled = true;
-    let mediaRecorder = null;
-    let audioChunks = [];
+    let googleVoice = null;
+    let recognition = null;
+    let isListening = false;
 
     volBtn.addEventListener('click', () => {
       voiceEnabled = !voiceEnabled;
       volBtn.textContent = voiceEnabled ? '🔊' : '🔇';
       if (!voiceEnabled) window.speechSynthesis.cancel();
+      else loadGoogleVoice();
     });
-
-    function updateMeter(s) {
-      const pct = Math.round((1 - s/10) * 100);
-      meterFill.style.width = pct + '%';
-      if (s <= 3) { meterValue.textContent = 'WELL CONNECTED 💜'; avatarEmoji.textContent = '😄'; }
-      else if (s <= 6) { meterValue.textContent = 'FEELING BALANCED'; avatarEmoji.textContent = '😊'; }
-      else { meterValue.textContent = 'NEEDS CONNECTION 🤍'; avatarEmoji.textContent = '🥺'; }
-    }
-
-    let googleVoice = null;
 
     function loadGoogleVoice(callback) {
       const tryLoad = () => {
         const voices = window.speechSynthesis.getVoices();
-        googleVoice = voices.find(v => v.name.includes('Google') && v.lang === 'en-US') ||
+        googleVoice = voices.find(v => v.name === 'Google US English') ||
+                      voices.find(v => v.name.includes('Google') && v.lang === 'en-US') ||
                       voices.find(v => v.lang === 'en-US');
         if (callback) callback();
       };
@@ -132,19 +125,22 @@
       utter.lang = 'en-US';
       utter.rate = 0.95;
       utter.pitch = 1.1;
-      if (googleVoice) {
-        utter.voice = googleVoice;
+      const doSpeak = () => {
+        if (googleVoice) utter.voice = googleVoice;
         utter.onstart = () => { statusText.textContent = 'SPEAKING... 💬'; };
         utter.onend = () => { statusText.textContent = 'HERE FOR YOU'; };
         window.speechSynthesis.speak(utter);
-      } else {
-        loadGoogleVoice(() => {
-          if (googleVoice) utter.voice = googleVoice;
-          utter.onstart = () => { statusText.textContent = 'SPEAKING... 💬'; };
-          utter.onend = () => { statusText.textContent = 'HERE FOR YOU'; };
-          window.speechSynthesis.speak(utter);
-        });
-      }
+      };
+      if (googleVoice) doSpeak();
+      else loadGoogleVoice(doSpeak);
+    }
+
+    function updateMeter(s) {
+      const pct = Math.round((1 - s/10) * 100);
+      meterFill.style.width = pct + '%';
+      if (s <= 3) { meterValue.textContent = 'WELL CONNECTED 💜'; avatarEmoji.textContent = '😄'; }
+      else if (s <= 6) { meterValue.textContent = 'FEELING BALANCED'; avatarEmoji.textContent = '😊'; }
+      else { meterValue.textContent = 'NEEDS CONNECTION 🤍'; avatarEmoji.textContent = '🥺'; }
     }
 
     function addMessage(text, sender) {
@@ -197,9 +193,6 @@
     sendBtn.addEventListener('click', sendMessage);
     inputBox.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
-    let recognition = null;
-    let isListening = false;
-
     function setupRecognition() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) { addMessage('Voice not supported. Use Chrome.', 'aiometre'); return null; }
@@ -226,24 +219,13 @@
         })
         .catch(() => { addMessage('Error. Try again.', 'aiometre'); });
       };
-      r.onerror = (e) => {
-        micBtn.classList.remove('recording');
-        isListening = false;
-        statusText.textContent = 'HERE FOR YOU';
-      };
-      r.onend = () => {
-        micBtn.classList.remove('recording');
-        isListening = false;
-        statusText.textContent = 'HERE FOR YOU';
-      };
+      r.onerror = () => { micBtn.classList.remove('recording'); isListening = false; statusText.textContent = 'HERE FOR YOU'; };
+      r.onend = () => { micBtn.classList.remove('recording'); isListening = false; statusText.textContent = 'HERE FOR YOU'; };
       return r;
     }
 
     micBtn.addEventListener('click', () => {
-      if (isListening) {
-        if (recognition) recognition.stop();
-        return;
-      }
+      if (isListening) { if (recognition) recognition.stop(); return; }
       recognition = setupRecognition();
       if (!recognition) return;
       try {
@@ -251,11 +233,10 @@
         isListening = true;
         micBtn.classList.add('recording');
         statusText.textContent = 'LISTENING... 🎙️';
-      } catch(e) {
-        statusText.textContent = 'HERE FOR YOU';
-      }
+      } catch(e) { statusText.textContent = 'HERE FOR YOU'; }
     });
 
+    loadGoogleVoice();
     updateMeter(5);
   </script>
 </body>
