@@ -23,13 +23,17 @@
     .star-left { left: -30px; top: 20px; }
     .star-right { right: -30px; top: 20px; }
     @keyframes twinkle { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.2); opacity: 1; } }
-    .chat-area { width: 100%; max-width: 480px; overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 12px; max-height: 220px; scrollbar-width: none; margin-top: 5px; }
+    .chat-area { width: 100%; max-width: 480px; overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 12px; max-height: 240px; scrollbar-width: none; margin-top: 5px; }
     .chat-area::-webkit-scrollbar { display: none; }
     .message { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 0.88em; line-height: 1.5; animation: fadeIn 0.4s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .message.aiometre { align-self: flex-start; border-bottom-left-radius: 4px; background: rgba(46,125,50,0.8); border: 2px solid #00ffc1; color: white; }
     .message.user { background: linear-gradient(135deg, #c52d0e, #ff8a65); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
     .message-sender { font-size: 0.7em; font-weight: 600; letter-spacing: 1px; margin-bottom: 4px; opacity: 0.9; text-transform: uppercase; color: #ffde59; }
+    .options-area { width: 100%; max-width: 480px; display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 0; justify-content: center; }
+    .option-btn { background: linear-gradient(135deg, #c52d0e, #ff6b35); border: 2px solid #ff8a65; border-radius: 20px; padding: 8px 16px; color: white; font-family: 'Lato', sans-serif; font-size: 0.85em; cursor: pointer; transition: all 0.2s; }
+    .option-btn:hover { background: linear-gradient(135deg, #ffde59, #fff59d); color: #c52d0e; border-color: #ffde59; transform: scale(1.05); }
+    .option-btn.selected { background: linear-gradient(135deg, #ffde59, #fff59d); color: #c52d0e; border-color: #ffde59; }
     .input-area { width: 100%; max-width: 480px; display: flex; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255,222,89,0.4); margin-top: 8px; }
     .input-box { flex: 1; background: rgba(0,0,0,0.7); border: 1.5px solid #ffde59; border-radius: 24px; padding: 12px 18px; font-size: 0.88em; font-family: 'Lato', sans-serif; outline: none; color: #ffde59; }
     .input-box::placeholder { color: rgba(255,222,89,0.6); }
@@ -60,15 +64,13 @@
     <div class="stars star-right">✨</div>
     <div class="status-text" id="statusText">HERE FOR YOU</div>
   </div>
-  <div class="chat-area" id="chatArea">
-    <div class="message aiometre">
-      <div class="message-sender">AIOmetre</div>
-      Hey! Tap 🎙 to talk or type below. Ready to begin? 🌸
-    </div>
+  <div class="chat-area" id="chatArea"></div>
+  <div class="options-area" id="optionsArea">
+    <button id="startBtn" style="background:linear-gradient(135deg,#00ffc1,#00b894);border:none;border-radius:30px;padding:14px 32px;color:#1a1a1a;font-family:'Chewy',cursive;font-size:1.4em;cursor:pointer;box-shadow:0 4px 18px rgba(0,255,193,0.4);letter-spacing:2px;">✨ Click Here to Start</button>
   </div>
   <div class="input-area">
     <button class="vol-btn" id="volBtn" title="Toggle voice">🔊</button>
-    <button class="mic-btn" id="micBtn" title="Tap to talk">🎙</button>
+    <button class="mic-btn" id="micBtn" title="Hold to talk">🎙</button>
     <input class="input-box" id="inputBox" type="text" placeholder="or type here..."/>
     <button class="send-btn" id="sendBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
@@ -89,6 +91,7 @@
     const sendBtn = document.getElementById('sendBtn');
     const micBtn = document.getElementById('micBtn');
     const volBtn = document.getElementById('volBtn');
+    const optionsArea = document.getElementById('optionsArea');
     const avatarEmoji = document.getElementById('avatarEmoji');
     const statusText = document.getElementById('statusText');
     const meterFill = document.getElementById('meterFill');
@@ -97,11 +100,11 @@
     let voiceEnabled = true;
     let googleVoice = null;
     let recognition = null;
-    let isListening = false;
+    let accumulated = '';
 
     volBtn.addEventListener('click', () => {
       voiceEnabled = !voiceEnabled;
-      volBtn.textContent = voiceEnabled ? '🔊' : '🔇';
+      volBtn.textContent = voiceEnabled ? '🔥' : '🔇';
       if (!voiceEnabled) window.speechSynthesis.cancel();
       else loadGoogleVoice();
     });
@@ -118,8 +121,12 @@
       else window.speechSynthesis.onvoiceschanged = tryLoad;
     }
 
-    function speak(text) {
-      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+    function speak(text, options) {
+      text = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+      if (!voiceEnabled || !('speechSynthesis' in window)) {
+        if (options && options.length > 0) showOptions(options);
+        return;
+      }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'en-US';
@@ -127,8 +134,12 @@
       utter.pitch = 1.1;
       const doSpeak = () => {
         if (googleVoice) utter.voice = googleVoice;
-        utter.onstart = () => { statusText.textContent = 'SPEAKING... 💬'; };
-        utter.onend = () => { statusText.textContent = 'HERE FOR YOU'; };
+        utter.onstart = () => { statusText.textContent = 'SPEAKING... 💬'; avatarEmoji.textContent = '😎'; };
+        utter.onend = () => {
+          statusText.textContent = 'HERE FOR YOU';
+          avatarEmoji.textContent = '😊';
+          if (options && options.length > 0) showOptions(options);
+        };
         window.speechSynthesis.speak(utter);
       };
       if (googleVoice) doSpeak();
@@ -141,6 +152,22 @@
       if (s <= 3) { meterValue.textContent = 'WELL CONNECTED 💜'; avatarEmoji.textContent = '😄'; }
       else if (s <= 6) { meterValue.textContent = 'FEELING BALANCED'; avatarEmoji.textContent = '😊'; }
       else { meterValue.textContent = 'NEEDS CONNECTION 🤍'; avatarEmoji.textContent = '🥺'; }
+    }
+
+    function showOptions(options) {
+      optionsArea.innerHTML = '';
+      if (!options || options.length === 0) return;
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          setTimeout(() => sendMessageToAPI(opt), 200);
+        });
+        optionsArea.appendChild(btn);
+      });
     }
 
     function addMessage(text, sender) {
@@ -165,79 +192,185 @@
       chatArea.scrollTop = chatArea.scrollHeight;
     }
 
-    function sendMessage() {
-      const text = inputBox.value.trim();
-      if (!text) return;
-      addMessage(text, 'user');
-      inputBox.value = '';
+    function handleReply(data) {
+      addMessage(data.reply, 'aiometre');
+      if (data.score !== undefined) updateMeter(data.score);
+      const reply = data.reply || '';
+      if (reply.includes('Want me to take you out of the matrix')) {
+        speak(reply, []);
+        const checkMatrix = setInterval(() => {
+          if (!window.speechSynthesis.speaking) {
+            clearInterval(checkMatrix);
+            showMatrixPills();
+          }
+        }, 300);
+      } else if (reply.includes('Another one?')) {
+        speak(reply, ['Hell yes 🔥', 'I need a break', 'Hasta la vista, Baby!']);
+      } else if (reply.includes('Ready for your next mission')) {
+        speak(reply, ['Hell yes 🔥', 'Give me a sec', 'Hasta la vista, Baby!']);
+      } else {
+        speak(reply, data.options);
+      }
+      statusText.textContent = 'HERE FOR YOU';
+    }
+
+    function silentSend(text) {
+      if (!text || !text.trim()) return;
+      optionsArea.innerHTML = '';
       showTyping();
       statusText.textContent = 'THINKING... 🌿';
       fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, session_id: sessionId })
+        body: JSON.stringify({ message: text.trim(), session_id: sessionId })
       })
       .then(res => res.json())
-      .then(data => {
-        addMessage(data.reply, 'aiometre');
-        if (data.score !== undefined) updateMeter(data.score);
-        speak(data.reply);
-        statusText.textContent = 'HERE FOR YOU';
-      })
+      .then(data => { handleReply(data); })
       .catch(() => {
         addMessage('Connection error. Try again.', 'aiometre');
         statusText.textContent = 'HERE FOR YOU';
       });
     }
 
-    sendBtn.addEventListener('click', sendMessage);
-    inputBox.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
-
-    function setupRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) { addMessage('Voice not supported. Use Chrome.', 'aiometre'); return null; }
-      const r = new SR();
-      r.lang = 'en-US';
-      r.continuous = false;
-      r.interimResults = false;
-      r.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        addMessage(transcript, 'user');
-        showTyping();
-        statusText.textContent = 'THINKING... 🌿';
-        fetch('/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: transcript, session_id: sessionId })
-        })
-        .then(res => res.json())
-        .then(data => {
-          addMessage(data.reply, 'aiometre');
-          if (data.score !== undefined) updateMeter(data.score);
-          speak(data.reply);
-          statusText.textContent = 'HERE FOR YOU';
-        })
-        .catch(() => { addMessage('Error. Try again.', 'aiometre'); });
-      };
-      r.onerror = () => { micBtn.classList.remove('recording'); isListening = false; statusText.textContent = 'HERE FOR YOU'; };
-      r.onend = () => { micBtn.classList.remove('recording'); isListening = false; statusText.textContent = 'HERE FOR YOU'; };
-      return r;
+    function sendMessageToAPI(text) {
+      if (!text || !text.trim()) return;
+      addMessage(text, 'user');
+      inputBox.value = '';
+      optionsArea.innerHTML = '';
+      showTyping();
+      statusText.textContent = 'THINKING... 🌿';
+      fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text.trim(), session_id: sessionId })
+      })
+      .then(res => res.json())
+      .then(data => { handleReply(data); })
+      .catch(() => {
+        addMessage('Connection error. Try again.', 'aiometre');
+        statusText.textContent = 'HERE FOR YOU';
+      });
     }
 
-    micBtn.addEventListener('click', () => {
-      if (isListening) { if (recognition) recognition.stop(); return; }
-      recognition = setupRecognition();
-      if (!recognition) return;
-      try {
-        recognition.start();
-        isListening = true;
-        micBtn.classList.add('recording');
+    sendBtn.addEventListener('click', () => sendMessageToAPI(inputBox.value));
+    inputBox.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessageToAPI(inputBox.value); });
+
+    micBtn.addEventListener('mousedown', () => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { addMessage('Voice not supported. Use Chrome.', 'aiometre'); return; }
+      accumulated = '';
+      recognition = new SR();
+      recognition.lang = 'en-US';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (e) => {
+        let final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        }
+        if (final) accumulated += ' ' + final;
         statusText.textContent = 'LISTENING... 🎙️';
-      } catch(e) { statusText.textContent = 'HERE FOR YOU'; }
+      };
+      recognition.onerror = () => { micBtn.classList.remove('recording'); statusText.textContent = 'HERE FOR YOU'; };
+      recognition.start();
+      micBtn.classList.add('recording');
+      statusText.textContent = 'HOLD & SPEAK... 🎙️';
     });
 
-    loadGoogleVoice();
+    micBtn.addEventListener('mouseup', () => {
+      if (recognition) recognition.stop();
+      micBtn.classList.remove('recording');
+      statusText.textContent = 'HERE FOR YOU';
+      setTimeout(() => { if (accumulated.trim()) sendMessageToAPI(accumulated.trim()); }, 300);
+    });
+
+    micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); micBtn.dispatchEvent(new Event('mousedown')); });
+    micBtn.addEventListener('touchend', (e) => { e.preventDefault(); micBtn.dispatchEvent(new Event('mouseup')); });
+
     updateMeter(5);
+
+    function showMatrixPills() {
+      const area = document.getElementById('optionsArea');
+      area.innerHTML = '';
+      const red = document.createElement('button');
+      red.textContent = '🔴 Red Pill';
+      red.style.cssText = 'background:radial-gradient(ellipse at center,#ff4444,#8b0000);border:2px solid #ff6666;border-radius:50px;padding:12px 28px;color:white;font-family:Lato,sans-serif;font-size:1em;font-weight:bold;cursor:pointer;box-shadow:0 4px 20px rgba(255,68,68,0.6);letter-spacing:1px;';
+      red.addEventListener('click', () => {
+        area.innerHTML = '';
+        addMessage('Red Pill', 'user');
+        silentSend('RED PILL');
+      });
+      const blue = document.createElement('button');
+      blue.textContent = '🔵 Blue Pill';
+      blue.style.cssText = 'background:radial-gradient(ellipse at center,#4488ff,#00008b);border:2px solid #6699ff;border-radius:50px;padding:12px 28px;color:white;font-family:Lato,sans-serif;font-size:1em;font-weight:bold;cursor:pointer;box-shadow:0 4px 20px rgba(68,136,255,0.6);letter-spacing:1px;';
+      blue.addEventListener('click', () => {
+        area.innerHTML = '';
+        addMessage('Blue Pill', 'user');
+        silentSend('BLUE PILL');
+      });
+      area.appendChild(red);
+      area.appendChild(blue);
+    }
+
+    function showYesNo() {
+      const area = document.getElementById('optionsArea');
+      area.innerHTML = '';
+      const yes = document.createElement('button');
+      yes.className = 'option-btn';
+      yes.textContent = 'Yes 🙌';
+      yes.addEventListener('click', () => {
+        area.innerHTML = '';
+        silentSend("skip intro and start questions directly with Q1");
+      });
+      const no = document.createElement('button');
+      no.className = 'option-btn';
+      no.textContent = 'No';
+      no.addEventListener('click', () => {
+        area.innerHTML = '';
+        const byeText = 'Hasta la vista, Baby!';
+        addMessage(byeText + ' 👋', 'aiometre');
+        speak(byeText);
+        statusText.textContent = 'HERE FOR YOU';
+        const comeback = document.createElement('button');
+        comeback.className = 'option-btn';
+        comeback.textContent = '✨ Get me back to AIOmetre';
+        comeback.style.background = 'linear-gradient(135deg,#00ffc1,#00b894)';
+        comeback.style.color = '#1a1a1a';
+        comeback.style.fontWeight = 'bold';
+        comeback.addEventListener('click', () => {
+          area.innerHTML = '';
+          silentSend("skip intro and start questions directly with Q1");
+        });
+        area.appendChild(comeback);
+      });
+      area.appendChild(yes);
+      area.appendChild(no);
+    }
+
+    document.getElementById('startBtn').addEventListener('click', function() {
+      this.style.background = 'linear-gradient(135deg,#ffde59,#fff59d)';
+      this.style.color = '#c52d0e';
+      this.disabled = true;
+      loadGoogleVoice(() => {
+        const welcomeText = "Hey! I am AIOmetre, your human connection companion. Please answer 4 quick questions so I can get to know you better. Can we start?";
+        const utter = new SpeechSynthesisUtterance(welcomeText);
+        utter.lang = 'en-US';
+        utter.rate = 0.95;
+        utter.pitch = 1.1;
+        if (googleVoice) utter.voice = googleVoice;
+        utter.onstart = () => {
+          statusText.textContent = 'SPEAKING... 💬';
+          avatarEmoji.textContent = '😎';
+          document.getElementById('optionsArea').innerHTML = '';
+          addMessage("Hey! I am AIOmetre, your human connection companion. Please answer 4 quick questions so I can get to know you better. Can we start?", 'aiometre');
+        };
+        utter.onend = () => {
+          statusText.textContent = 'HERE FOR YOU';
+          showYesNo();
+        };
+        window.speechSynthesis.speak(utter);
+      });
+    });
   </script>
 </body>
 </html>
