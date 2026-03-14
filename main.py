@@ -17,6 +17,7 @@ LANGUAGE: Mirror the user. They switch, you switch.
 NICKNAME: Use actual name if told. Otherwise say "friend". NEVER write literal [nickname].
 CRITICAL: If you receive "skip intro and start questions directly with Q1" jump IMMEDIATELY to Q1. No greeting. No preamble.
 CRITICAL: If user says "continue", "let's continue", "back", "I want to continue", or similar — skip ALL questions and say exactly: "Hold on! To unlock your mission, you need to hear this story first, deal?" Do NOT add OPTIONS.
+CRITICAL: If user says "Not ready yet" or "Need more time" after a mission — say warmly: "No worries! Come back whenever you feel ready." Then show: OPTIONS: Hell yes 🔥 | Hasta la vista, Baby!
 
 STEP 1 - Q1: When you are with your closest friends, are you the listener, the leader, or the funny one?
 OPTIONS: The listener | The leader | The funny one | A mix of all
@@ -25,18 +26,19 @@ STEP 2 - SCREEN TIME: Ask exactly: "Real talk — how many hours on screens toda
 OPTIONS: Less than 2h | 3-4h | 5-6h | 7+ hours
 After answer, give ONE short reaction sentence. Then set SCORE:
 Less than 2h: SCORE:2 | 3-4h: SCORE:5 | 5-6h: SCORE:7 | 7+h: SCORE:9
+CRITICAL: After missions are completed, update SCORE down by 2 points to reflect human connection made.
 
-STEP 3 - PAIRING: Pick ONE pairing based on Q1 answer. AIOmetre = companion. User = protagonist. MAX 2 short sentences. STOP. Ask: Does this resonate?
+STEP 3: Pick EXACTLY ONE pairing. NEVER write the words PAIRING or STEP. Start with "You made me think of [characters]." then ONE sentence on the vibe. STOP. Ask: Does this resonate?
 OPTIONS: Yes, I love it! | Tell me more | Suggest another
 CRITICAL: Output NOTHING after OPTIONS. Wait for user.
 CRITICAL: Once confirmed — NEVER repeat. Move to STEP 4.
-CRITICAL: Tell me more or Suggest another — ONE different pairing, 2 sentences max.
+CRITICAL: Tell me more or Suggest another — pick ONE completely different pairing, 2 sentences max. NEVER mention two pairings at once.
 
 PAIRINGS: Frodo & Sam | Gandalf & Bilbo | Joey & Chandler | Monica & Rachel | Lorelai & Rory | Turk & JD | Thelma & Louise | Sherlock & Watson | Luke & Yoda | Daniel & Mr. Miyagi | Harry & Dumbledore | Neo & Morpheus | Don Quijote & Sancho | Elphaba & Glinda | Willow & Tara | Crowley & Aziraphale | Korra & Asami | Adora & Catra | Eric & Otis | Nick & Tao | Magnus & Alec | Blanca & Elektra | David & Stevie
 
 STEP 4 - VIBE CHECK: Ask exactly: "One last thing — which song feels more like you lately?"
 OPTIONS: Unstoppable by Sia 🔥 | Numb by U2 🌫️ | Hurt by Johnny Cash 🪨
-After answer, give ONE warm sentence reaction. Then say exactly: "Want me to take you out of the matrix? Ha, I am joking! Am I though?"
+After answer, give ONE warm sentence reaction. Then say exactly: "Want me to take you out of the matrix? Ha, I am joking! Am I?"
 Do NOT add OPTIONS — frontend handles pill buttons.
 
 STEP 5 - PILLS:
@@ -82,6 +84,14 @@ def fondo():
 def foto():
     return open('eloisa_flores_foto.png', 'rb').read(), 200, {'Content-Type': 'image/png'}
 
+@app.route('/cat_<name>.png')
+def cat_image(name):
+    import os
+    path = f'cat_{name}.png'
+    if os.path.exists(path):
+        return open(path, 'rb').read(), 200, {'Content-Type': 'image/png'}
+    return '', 404
+
 @app.route('/chat', methods=['POST'])
 def chat_endpoint():
     data = request.json
@@ -96,7 +106,7 @@ def chat_endpoint():
             contents=chat_sessions[session_id],
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
-                max_output_tokens=450
+                max_output_tokens=800
             )
         )
         full_text = response.text if response.text else "I got a little lost there — say that again? 😄"
@@ -143,28 +153,62 @@ def story_endpoint():
     pairing = data.get('pairing', 'two companions')
     try:
         import json
-        story_prompt = f"""Create a short story for someone who feels {vibe} and relates to {pairing}.
-Respond with ONLY these two lines, nothing else:
-STORY: [2-3 warm human sentences: a conflict, a resolution, and a moral]
-IMAGE: [detailed scene for one illustration, anime european style, warm amber tones, two people connecting]"""
+        story_prompt = f"""Pick ONE quote from this list that fits someone who feels {vibe}. NEVER use the same quote twice. Pick a DIFFERENT one each time.
+LIST:
+- "Winter is coming." — Ned Stark, Game of Thrones
+- "I am the one who knocks." — Walter White, Breaking Bad
+- "I'll be back." — T-800, The Terminator
+- "May the Force be with you." — Han Solo, Star Wars
+- "I am your father." — Darth Vader, Star Wars
+- "Bazinga!" — Sheldon Cooper, The Big Bang Theory
+- "How you doin?" — Joey Tribbiani, Friends
+- "I drink and I know things." — Tyrion Lannister, Game of Thrones
+- "To infinity and beyond!" — Buzz Lightyear, Toy Story
+- "Just keep swimming." — Dory, Finding Nemo
+- "I am the king of the world!" — Jack Dawson, Titanic
+- "Houston, we have a problem." — Jim Lovell, Apollo 13
+- "Roads? Where we are going we do not need roads." — Doc Brown, Back to the Future
+- "You know nothing, Jon Snow." — Ygritte, Game of Thrones
+- "My precious." — Gollum, Lord of the Rings
+- "Wakanda forever!" — T'Challa, Black Panther
+- "With great power comes great responsibility." — Uncle Ben, Spider-Man
+- "This is the way." — Din Djarin, The Mandalorian
+- "Never tell me the odds." — Han Solo, Star Wars
+- "You shall not pass!" — Gandalf, Lord of the Rings
+- "You had me at hello." — Dorothy Boyd, Jerry Maguire
+- "Life finds a way." — Ian Malcolm, Jurassic Park
+- "A Lannister always pays his debts." — Tyrion Lannister, Game of Thrones
+- "I am not afraid." — Lagertha, Vikings
+- "I am one with the Force." — Chirrut Imwe, Rogue One
+- "Some people are worth melting for." — Olaf, Frozen
+- "Adventure is out there!" — Charles Muntz, Up
+- "Family is not perfect. But that does not mean they are not good." — Lilo, Lilo and Stitch
+- "All you need is love." — The Beatles
+- "After all this time? Always." — Snape, Harry Potter
+- "There is no place like home." — Dorothy, The Wizard of Oz
+- "You is kind, you is smart, you is important." — The Help
+- "Mama always said life was like a box of chocolates." — Forrest Gump
+Respond with ONLY these two lines:
+QUOTE: [the exact quote, nothing else, no author, no title]
+IMAGE: [cute corgi or small animal expressing the emotion of the quote, warm amber colors, simple flat illustration, white background]"""
         story_response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[{"role": "user", "parts": [{"text": story_prompt}]}],
             config=types.GenerateContentConfig(max_output_tokens=400)
         )
         raw = story_response.text.strip()
-        story_line = ""
+        quote_line = ""
         image_line = ""
         for line in raw.split("\n"):
-            if line.startswith("STORY:"):
-                story_line = line[6:].strip()
+            if line.startswith("QUOTE:"):
+                quote_line = line[6:].strip()
             elif line.startswith("IMAGE:"):
                 image_line = line[6:].strip()
-        if not story_line:
-            story_line = "Sometimes the best connections happen when we least expect them."
+        if not quote_line:
+            quote_line = "The most important thing in the world is family and love. — John Wooden"
         if not image_line:
             image_line = "two friends reuniting after a long time, warm embrace, golden light"
-        story = {"story_text": story_line, "image_prompt": image_line}
+        story = {"story_text": quote_line, "image_prompt": image_line}
         img_prompt = story['image_prompt'] + ", anime european style illustration, warm golden amber colors, soft shadows, clean lines, emotional, cinematic, no text, no watermark"
         img_response = client.models.generate_images(
             model="imagen-4.0-fast-generate-001",
