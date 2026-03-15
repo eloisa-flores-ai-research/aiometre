@@ -1,6 +1,9 @@
 # AIOmetre — Your Human Connection Companion
 AI-Powered Human Connection Agent | Built by Eloisa Flores with Google Gemini + Imagen
 
+## Screenshot
+![AIOmetre Interface](screenshot.png)
+
 Live Demo: https://aiometre-446670956067.us-central1.run.app
 
 ---
