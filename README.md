@@ -80,6 +80,7 @@ Gemini 2.5 Flash is one of Google's most capable and efficient models — and it
 - **Voice:** Web Speech API (browser-native)
 - **Hosting:** Google Cloud Run
 - **Frontend:** Vanilla HTML/CSS/JavaScript
+- **Cat illustrations:** Generated with Nano Banana AI image generator
 
 ---
 
